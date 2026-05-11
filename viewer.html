@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>ParkOS — Live Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0e14;--bg2:#111520;--bg3:#181d2a;
+  --border:#1e2535;--border2:#2a3247;
+  --text:#e8eaf0;--muted:#7a8099;
+  --accent:#00c9a7;--accent2:#4f7cff;
+  --warn:#f5a623;--danger:#f04b4b;--green:#2ecc71;
+  --font:'Sora',sans-serif;--mono:'DM Mono',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;font-size:14px}
+.shell{display:grid;grid-template-columns:200px 1fr;min-height:100vh}
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column}
+.main{display:flex;flex-direction:column;flex:1;overflow:hidden}
+
+.logo{padding:22px 18px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.logo-icon{width:30px;height:30px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center}
+.logo-icon svg{width:16px;height:16px;fill:var(--bg)}
+.logo-text{font-size:14px;font-weight:600}
+.logo-sub{font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase}
+.viewer-badge{margin:10px 18px;background:rgba(79,124,255,.1);border:1px solid rgba(79,124,255,.2);border-radius:8px;padding:7px 10px;font-size:11px;color:var(--accent2);text-align:center}
+
+.nav{padding:8px 0;flex:1}
+.nav-label{font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;padding:8px 18px 5px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:10px 18px;cursor:pointer;color:var(--muted);font-size:13px;border-left:3px solid transparent;transition:all .15s}
+.nav-item:hover{color:var(--text);background:var(--bg3)}
+.nav-item.active{color:var(--accent);background:rgba(0,201,167,.06);border-left-color:var(--accent)}
+.nav-item svg{width:14px;height:14px;flex-shrink:0}
+.nav-item.locked{opacity:.35;cursor:not-allowed;pointer-events:none}
+
+.sidebar-footer{padding:14px 18px;border-top:1px solid var(--border)}
+.user-row{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.user-avatar{width:28px;height:28px;border-radius:50%;background:rgba(79,124,255,.15);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:var(--accent2)}
+.user-name{font-size:12px;font-weight:500}
+.user-role{font-size:10px;color:var(--muted)}
+.btn-so{width:100%;padding:6px;background:transparent;border:1px solid var(--border2);border-radius:7px;color:var(--muted);font-family:var(--font);font-size:11px;cursor:pointer}
+.btn-so:hover{border-color:var(--danger);color:var(--danger)}
+
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 26px;height:52px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.page-title{font-size:15px;font-weight:500}
+.page-sub{font-size:11px;color:var(--muted)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.clock{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.badge-live{padding:3px 10px;border-radius:20px;font-size:11px;background:rgba(46,204,113,.1);color:#2ecc71;border:1px solid rgba(46,204,113,.2);display:flex;align-items:center;gap:5px}
+.dot-live{width:5px;height:5px;border-radius:50%;background:#2ecc71;animation:pulse 1.4s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
+
+.content{flex:1;padding:20px 24px;overflow-y:auto}
+.page{display:none}.page.active{display:block}
+
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+.stat-val{font-size:22px;font-weight:600;font-family:var(--mono);line-height:1}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:4px}
+.c-accent{color:var(--accent)}.c-warn{color:var(--warn)}.c-green{color:var(--green)}.c-danger{color:var(--danger)}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:15px}
+.card-title{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:11px}
+
+.chart-box{position:relative;width:100%}
+
+.ring-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px}
+.ring-row:last-child{border-bottom:none}
+.ring-dot{width:7px;height:7px;border-radius:50%;margin-right:6px;display:inline-block}
+.occ-bar{height:4px;background:var(--border2);border-radius:2px;overflow:hidden;margin:3px 0 7px}
+.occ-fill{height:100%;border-radius:2px;transition:width .5s}
+
+.gate-card{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px}
+.gate-name{font-size:11px;font-weight:500;color:var(--muted);margin-bottom:4px}
+.gate-count{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:3px}
+
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:8px 10px;text-align:left;color:var(--muted);font-weight:500;font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)}
+td{padding:9px 10px;border-bottom:1px solid var(--border);color:var(--text)}
+tr:last-child td{border-bottom:none}
+.table-wrap{overflow-x:auto}
+.pill{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:500;font-family:var(--mono)}
+.pill.general{background:rgba(79,124,255,.12);color:#4f7cff}
+.pill.vip{background:rgba(155,127,232,.12);color:#9b7fe8}
+.pill.bus{background:rgba(245,166,35,.12);color:#f5a623}
+.pill.disabled{background:rgba(0,201,167,.12);color:#00c9a7}
+
+.readonly-banner{background:rgba(79,124,255,.06);border:1px solid rgba(79,124,255,.15);border-radius:8px;padding:9px 14px;font-size:12px;color:var(--accent2);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+
+.avail-big{text-align:center;padding:20px 0}
+.avail-number{font-size:56px;font-weight:600;font-family:var(--mono);line-height:1}
+.avail-sub{font-size:13px;color:var(--muted);margin-top:6px}
+.avail-ring{width:160px;height:160px;margin:0 auto 16px}
+
+.syncing{font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:6px}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></div>
+    <div><div class="logo-text">ParkOS</div><div class="logo-sub">Viewer</div></div>
+  </div>
+  <div class="viewer-badge">Read-only access</div>
+  <nav class="nav">
+    <div class="nav-label">Dashboard</div>
+    <div class="nav-item active" onclick="nav('dashboard',this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>Live overview</div>
+    <div class="nav-item" onclick="nav('availability',this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/></svg>Availability</div>
+    <div class="nav-label">Reports</div>
+    <div class="nav-item" onclick="nav('reports',this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>Summary report</div>
+    <div class="nav-label" style="margin-top:8px">Locked</div>
+    <div class="nav-item locked"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM12 17c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>Vehicle entry</div>
+    <div class="nav-item locked"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2z"/></svg>Vehicle exit</div>
+    <div class="nav-item locked"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2z"/></svg>Operations</div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-row">
+      <div class="user-avatar" id="v-initials">?</div>
+      <div><div class="user-name" id="v-name">Loading…</div><div class="user-role">Viewer</div></div>
+    </div>
+    <button class="btn-so" onclick="doSignOut()">Sign out</button>
+    <div class="syncing" id="sync-status">Connecting…</div>
+  </div>
+</aside>
+
+<div class="main">
+  <header class="topbar">
+    <div><div class="page-title" id="top-title">Live overview</div><div class="page-sub" id="top-sub">Real-time parking status</div></div>
+    <div class="topbar-right">
+      <span class="clock" id="clock"></span>
+      <div class="badge-live"><div class="dot-live"></div>Live</div>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="readonly-banner">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+        You have view-only access. Data updates in real time from Firebase.
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Capacity</div><div class="stat-val c-accent" id="s-cap">200</div><div class="stat-sub">Total spaces</div></div>
+        <div class="stat-card"><div class="stat-label">Parked now</div><div class="stat-val" id="s-occ">0</div><div class="stat-sub" id="s-pct">0% full</div></div>
+        <div class="stat-card"><div class="stat-label">Available</div><div class="stat-val c-green" id="s-free">200</div><div class="stat-sub">Open spots</div></div>
+        <div class="stat-card"><div class="stat-label">Utilization</div><div class="stat-val c-warn" id="s-util">0%</div><div class="stat-sub">of capacity</div></div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title">Space by vehicle type</div>
+          <div style="display:flex;align-items:center;gap:14px">
+            <canvas id="donut" width="100" height="100" style="width:100px;height:100px;flex-shrink:0" role="img" aria-label="Occupancy by type donut chart"></canvas>
+            <div style="flex:1" id="type-rows"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Hourly arrivals</div>
+          <div class="chart-box" style="height:150px"><canvas id="arr-chart" role="img" aria-label="Hourly arrivals bar chart"></canvas></div>
+        </div>
+      </div>
+      <div class="grid3">
+        <div class="card"><div class="card-title">Entry gates</div><div id="entry-gate-view"></div></div>
+        <div class="card"><div class="card-title">Exit gates</div><div id="exit-gate-view"></div></div>
+        <div class="card">
+          <div class="card-title">Lot fill level</div>
+          <div class="chart-box" style="height:130px"><canvas id="fill-chart" role="img" aria-label="Lot fill level over time"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AVAILABILITY -->
+    <div class="page" id="page-availability">
+      <div class="readonly-banner"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>Live availability — updates automatically</div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title">Total availability</div>
+          <div class="avail-big">
+            <canvas id="avail-ring" width="140" height="140" style="width:140px;height:140px" class="avail-ring" role="img" aria-label="Large occupancy donut"></canvas>
+            <div class="avail-number c-accent" id="avail-num">200</div>
+            <div class="avail-sub">spots available right now</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">By vehicle type</div>
+          <div id="avail-by-type"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REPORTS -->
+    <div class="page" id="page-reports">
+      <div class="readonly-banner"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11zM8 15h8v2H8zm0-4h8v2H8z"/></svg>Summary statistics — read only</div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Total entries</div><div class="stat-val" id="rep-entries">0</div><div class="stat-sub">All time</div></div>
+        <div class="stat-card"><div class="stat-label">Total exits</div><div class="stat-val" id="rep-exits">0</div><div class="stat-sub">All time</div></div>
+        <div class="stat-card"><div class="stat-label">Turned away</div><div class="stat-val c-danger" id="rep-denied">0</div><div class="stat-sub">Vehicles rejected</div></div>
+        <div class="stat-card"><div class="stat-label">Revenue</div><div class="stat-val c-green" id="rep-rev">0</div><div class="stat-sub">RWF collected</div></div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title">Recent exits</div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Time</th><th>Plate</th><th>Type</th><th>Duration</th><th>Fee</th></tr></thead>
+            <tbody id="rep-exit-tbody"></tbody></table>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Gate throughput</div>
+          <div class="chart-box" style="height:200px"><canvas id="rep-gate-chart" role="img" aria-label="Gate throughput"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<script type="module">
+import { initializeApp }  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, doc, onSnapshot, query, orderBy, limit, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const FB = {
+  apiKey: "AIzaSyBQbBm2Ykn3hZRMdpQ5XgvOvJsjFk1-4yY",
+  authDomain: "parkos-lot.firebaseapp.com",
+  projectId: "parkos-lot",
+  storageBucket: "parkos-lot.firebasestorage.app",
+  messagingSenderId: "945953655937",
+  appId: "1:945953655937:web:afd284b5e77ef436289180"
+};
+const ROLE_MAP = {};
+const PARKING = {
+  capacity:200,
+  types:{General:{spaces:130,color:"#4f7cff"},VIP:{spaces:20,color:"#9b7fe8"},Bus:{spaces:30,color:"#f5a623"},Disabled:{spaces:20,color:"#00c9a7"}},
+  entryGates:["Gate A","Gate B","Gate C","Gate D"],exitGates:["Gate X","Gate Y","Gate Z"]
+};
+
+const app=initializeApp(FB);
+const auth=getAuth(app);
+const db=getFirestore(app);
+
+const S={occupancy:{General:0,VIP:0,Bus:0,Disabled:0},entryGC:{},exitGC:{},exitLog:[],entryLog:[],deniedLog:[],revenue:0,hourly:Array(24).fill(0),fillHistory:[]};
+let donut,donut2,arrChart,fillChart,gateChart;
+
+onAuthStateChanged(auth,async user=>{
+  if(!user){window.location.href="index.html";return;}
+  try{
+    const snap=await getDoc(doc(db,"users",user.uid));
+    const role=(snap.exists()&&snap.data().role)?snap.data().role:(ROLE_MAP[user.email]||"viewer");
+    if(role==="admin"){window.location.href="admin.html";return;}
+  }catch{}
+  const initials=(user.displayName||user.email||"?").slice(0,2).toUpperCase();
+  document.getElementById("v-initials").textContent=initials;
+  document.getElementById("v-name").textContent=user.displayName||user.email;
+  document.getElementById("sync-status").textContent="● Connected";
+  subscribeData();
+  initCharts();
+});
+
+window.doSignOut=()=>signOut(auth).then(()=>{window.location.href="index.html";});
+
+function subscribeData(){
+  onSnapshot(collection(db,"parked"),snap=>{
+    S.occupancy={General:0,VIP:0,Bus:0,Disabled:0};
+    snap.forEach(d=>{ const v=d.data(); S.occupancy[v.type]=(S.occupancy[v.type]||0)+1; });
+    const occ=Object.values(S.occupancy).reduce((a,b)=>a+b,0);
+    S.fillHistory.push({t:new Date().toTimeString().slice(0,5),v:occ});
+    if(S.fillHistory.length>30)S.fillHistory.shift();
+    refreshAll();
+  });
+  onSnapshot(query(collection(db,"exitLog"),orderBy("ts","desc"),limit(20)),snap=>{
+    S.exitLog=[];S.revenue=0;
+    snap.forEach(d=>{const v=d.data();S.exitLog.push(v);S.revenue+=(v.fee||0);});
+    refreshReports();
+  });
+  onSnapshot(query(collection(db,"entryLog"),orderBy("ts","desc"),limit(50)),snap=>{
+    S.entryLog=[]; snap.forEach(d=>S.entryLog.push(d.data()));
+    S.hourly=Array(24).fill(0);
+    S.entryLog.forEach(r=>{ if(r.time){const h=parseInt(r.time.split(":")[0]);if(!isNaN(h))S.hourly[h]++;} });
+    if(arrChart){arrChart.data.datasets[0].data=[...S.hourly];arrChart.update("none");}
+    refreshReports();
+  });
+  onSnapshot(query(collection(db,"deniedLog"),orderBy("ts","desc"),limit(50)),snap=>{
+    S.deniedLog=[]; snap.forEach(d=>S.deniedLog.push(d.data())); refreshReports();
+  });
+}
+
+function refreshAll(){
+  const occ=Object.values(S.occupancy).reduce((a,b)=>a+b,0),free=PARKING.capacity-occ,pct=Math.round(occ/PARKING.capacity*100);
+  document.getElementById("s-occ").textContent=occ;
+  document.getElementById("s-free").textContent=free;
+  document.getElementById("s-pct").textContent=pct+"% full";
+  document.getElementById("s-util").textContent=pct+"%";
+  document.getElementById("avail-num").textContent=free;
+  const types=Object.keys(PARKING.types);
+  document.getElementById("type-rows").innerHTML=types.map(t=>{
+    const u=S.occupancy[t]||0,tot=PARKING.types[t].spaces,p=Math.round(u/tot*100);
+    return `<div class="ring-row"><span><span class="ring-dot" style="background:${PARKING.types[t].color}"></span>${t}</span><span style="font-family:var(--mono)">${u}/${tot}</span></div><div class="occ-bar"><div class="occ-fill" style="width:${p}%;background:${PARKING.types[t].color}"></div></div>`;
+  }).join("");
+  document.getElementById("avail-by-type").innerHTML=types.map(t=>{
+    const u=S.occupancy[t]||0,tot=PARKING.types[t].spaces,a=tot-u,p=Math.round(u/tot*100);
+    const col=a>5?"var(--accent)":a>0?"var(--warn)":"var(--danger)";
+    return `<div style="padding:9px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:13px">
+        <span><span class="ring-dot" style="background:${PARKING.types[t].color}"></span>${t}</span>
+        <span style="font-family:var(--mono);color:${col}">${a} free</span>
+      </div>
+      <div class="occ-bar"><div class="occ-fill" style="width:${p}%;background:${PARKING.types[t].color}"></div></div>
+    </div>`;
+  }).join("");
+  // gate views
+  document.getElementById("entry-gate-view").innerHTML=PARKING.entryGates.map(g=>`
+    <div class="gate-card"><div class="gate-name">${g}</div><div style="display:flex;align-items:center;gap:5px;font-size:11px"><div style="width:5px;height:5px;border-radius:50%;background:#2ecc71"></div>Open</div></div>`).join("");
+  document.getElementById("exit-gate-view").innerHTML=PARKING.exitGates.map(g=>`
+    <div class="gate-card"><div class="gate-name">${g}</div><div style="display:flex;align-items:center;gap:5px;font-size:11px"><div style="width:5px;height:5px;border-radius:50%;background:#2ecc71"></div>Open</div></div>`).join("");
+  updateDonuts(occ,free);
+  if(fillChart){
+    fillChart.data.labels=S.fillHistory.map(r=>r.t);
+    fillChart.data.datasets[0].data=S.fillHistory.map(r=>r.v);
+    fillChart.update("none");
+  }
+}
+
+function updateDonuts(occ,free){
+  if(donut){donut.data.datasets[0].data=Object.values(S.occupancy);donut.update("none");}
+  if(donut2){donut2.data.datasets[0].data=[occ,free];donut2.update("none");}
+}
+
+function refreshReports(){
+  document.getElementById("rep-entries").textContent=S.entryLog.length;
+  document.getElementById("rep-exits").textContent=S.exitLog.length;
+  document.getElementById("rep-denied").textContent=S.deniedLog.length;
+  document.getElementById("rep-rev").textContent=S.revenue.toLocaleString();
+  const tb=document.getElementById("rep-exit-tbody");
+  if(tb)tb.innerHTML=S.exitLog.slice(0,10).map(r=>`<tr>
+    <td style="font-family:var(--mono)">${r.time||"–"}</td>
+    <td style="font-family:var(--mono);font-weight:500">${r.plate||"–"}</td>
+    <td><span class="pill ${(r.type||"").toLowerCase()}">${r.type||"–"}</span></td>
+    <td>${r.duration||"–"}</td>
+    <td style="font-family:var(--mono);color:var(--accent)">${(r.fee||0).toLocaleString()} RWF</td>
+  </tr>`).join("")||`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:18px">No exits yet</td></tr>`;
+  if(gateChart){
+    const all=[...PARKING.entryGates,...PARKING.exitGates];
+    gateChart.data.datasets[0].data=all.map(g=>S.entryGC[g]||S.exitGC[g]||0);
+    gateChart.update("none");
+  }
+}
+
+function initCharts(){
+  donut=new Chart(document.getElementById("donut"),{type:"doughnut",
+    data:{labels:Object.keys(PARKING.types),datasets:[{data:Object.values(S.occupancy),backgroundColor:Object.values(PARKING.types).map(t=>t.color),borderWidth:0}]},
+    options:{responsive:false,cutout:"72%",plugins:{legend:{display:false}}}});
+  donut2=new Chart(document.getElementById("avail-ring"),{type:"doughnut",
+    data:{labels:["Occupied","Free"],datasets:[{data:[0,200],backgroundColor:["#4f7cff","rgba(30,37,53,1)"],borderWidth:0}]},
+    options:{responsive:false,cutout:"70%",plugins:{legend:{display:false}}}});
+  arrChart=new Chart(document.getElementById("arr-chart"),{type:"bar",
+    data:{labels:Array.from({length:24},(_,i)=>i+":00"),datasets:[{data:[...S.hourly],backgroundColor:"rgba(79,124,255,.5)",borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:"#7a8099",font:{size:10},autoSkip:true,maxTicksLimit:8},grid:{color:"rgba(255,255,255,.04)"}},y:{ticks:{color:"#7a8099",font:{size:10}},grid:{color:"rgba(255,255,255,.04)"},beginAtZero:true}}}});
+  fillChart=new Chart(document.getElementById("fill-chart"),{type:"line",
+    data:{labels:[],datasets:[{data:[],borderColor:"#00c9a7",borderWidth:2,fill:true,backgroundColor:"rgba(0,201,167,.08)",tension:.4,pointRadius:0}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{ticks:{color:"#7a8099",font:{size:10}},grid:{color:"rgba(255,255,255,.04)"},beginAtZero:true,max:PARKING.capacity}}}});
+  gateChart=new Chart(document.getElementById("rep-gate-chart"),{type:"bar",
+    data:{labels:[...PARKING.entryGates,...PARKING.exitGates],datasets:[{data:Array(7).fill(0),backgroundColor:[...PARKING.entryGates.map(()=>"rgba(79,124,255,.5)"),...PARKING.exitGates.map(()=>"rgba(0,201,167,.5)")],borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:"#7a8099",font:{size:11}},grid:{color:"rgba(255,255,255,.04)"}},y:{ticks:{color:"#7a8099",font:{size:10}},grid:{color:"rgba(255,255,255,.04)"},beginAtZero:true}}}});
+}
+
+const pageMeta={dashboard:{t:"Live overview",s:"Real-time parking status"},availability:{t:"Availability",s:"Space by type"},reports:{t:"Summary report",s:"Statistics and exit log"}};
+window.nav=(id,el)=>{
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.getElementById("page-"+id).classList.add("active");
+  document.querySelectorAll(".nav-item").forEach(n=>n.classList.remove("active"));
+  if(el)el.classList.add("active");
+  const m=pageMeta[id]||{};
+  document.getElementById("top-title").textContent=m.t||id;
+  document.getElementById("top-sub").textContent=m.s||"";
+};
+
+setInterval(()=>document.getElementById("clock").textContent=new Date().toLocaleTimeString(),1000);
+document.getElementById("clock").textContent=new Date().toLocaleTimeString();
+</script>
+</body>
+</html>

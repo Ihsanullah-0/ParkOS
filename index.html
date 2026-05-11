@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ParkOS — Sign In</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0e14;--bg2:#111520;--bg3:#181d2a;
+  --border:#1e2535;--border2:#2a3247;
+  --text:#e8eaf0;--muted:#7a8099;
+  --accent:#00c9a7;--accent2:#4f7cff;
+  --danger:#f04b4b;--warn:#f5a623;
+  --font:'Sora',sans-serif;--mono:'DM Mono',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
+
+.bg-grid{position:fixed;inset:0;background-image:linear-gradient(rgba(79,124,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(79,124,255,.04) 1px,transparent 1px);background-size:48px 48px;pointer-events:none}
+.bg-glow{position:fixed;top:-200px;left:50%;transform:translateX(-50%);width:600px;height:400px;background:radial-gradient(ellipse,rgba(0,201,167,.07) 0%,transparent 70%);pointer-events:none}
+
+.login-wrap{width:100%;max-width:420px;padding:24px;position:relative;z-index:1}
+
+.logo-row{display:flex;align-items:center;gap:12px;margin-bottom:40px;justify-content:center}
+.logo-icon{width:42px;height:42px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center}
+.logo-icon svg{width:22px;height:22px;fill:var(--bg)}
+.logo-name{font-size:22px;font-weight:600;letter-spacing:.5px}
+.logo-sub{font-size:11px;color:var(--muted);letter-spacing:2px;text-transform:uppercase}
+
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:32px}
+.card-head{margin-bottom:28px}
+.card-title{font-size:18px;font-weight:500;margin-bottom:6px}
+.card-sub{font-size:13px;color:var(--muted)}
+
+.form-group{margin-bottom:18px}
+.form-label{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:7px}
+.form-input{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:11px 14px;color:var(--text);font-family:var(--font);font-size:14px;outline:none;transition:border-color .2s}
+.form-input:focus{border-color:var(--accent)}
+.form-input::placeholder{color:var(--muted)}
+
+.btn-login{width:100%;padding:13px;background:var(--accent);color:var(--bg);border:none;border-radius:10px;font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;transition:opacity .2s;margin-top:6px;letter-spacing:.3px}
+.btn-login:hover{opacity:.85}
+.btn-login:disabled{opacity:.4;cursor:not-allowed}
+
+.error-box{background:rgba(240,75,75,.1);border:1px solid rgba(240,75,75,.25);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--danger);margin-bottom:16px;display:none}
+.error-box.show{display:block}
+
+.roles-info{margin-top:24px;padding:16px;background:var(--bg3);border-radius:10px;border:1px solid var(--border)}
+.roles-info-title{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
+.role-row{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:12px}
+.role-badge{padding:2px 9px;border-radius:12px;font-size:10px;font-weight:500;font-family:var(--mono)}
+.role-badge.admin{background:rgba(0,201,167,.12);color:var(--accent)}
+.role-badge.viewer{background:rgba(79,124,255,.12);color:var(--accent2)}
+
+.spinner{width:18px;height:18px;border:2px solid rgba(11,14,20,.3);border-top-color:var(--bg);border-radius:50%;animation:spin .6s linear infinite;display:inline-block;vertical-align:middle;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.footer-note{text-align:center;font-size:11px;color:var(--muted);margin-top:20px}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<div class="login-wrap">
+  <div class="logo-row">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+    </div>
+    <div>
+      <div class="logo-name">ParkOS</div>
+      <div class="logo-sub">Lot Management</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">Welcome back</div>
+      <div class="card-sub">Sign in to access your parking dashboard</div>
+    </div>
+
+    <div class="error-box" id="error-box"></div>
+
+    <div class="form-group">
+      <label class="form-label">Email address</label>
+      <input class="form-input" type="email" id="email" placeholder="you@company.com" autocomplete="email"/>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input class="form-input" type="password" id="password" placeholder="Your password" autocomplete="current-password"/>
+    </div>
+
+    <button class="btn-login" id="btn-login" onclick="doLogin()">Sign in</button>
+
+    <div class="roles-info">
+      <div class="roles-info-title">Access levels</div>
+      <div class="role-row">
+        <span class="role-badge admin">Admin</span>
+        <span style="color:var(--text)">Full access — entry, exit, operations, all reports</span>
+      </div>
+      <div class="role-row">
+        <span class="role-badge viewer">Viewer</span>
+        <span style="color:var(--text)">Read-only — dashboard stats and reports only</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-note">ParkOS v2.0 · Powered by Firebase</div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ═══════════════════════════════════════════════════════════
+//  FIREBASE CONFIG — Your actual values
+// ═══════════════════════════════════════════════════════════
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBQbBm2Ykn3hZRMdpQ5XgvOvJsjFk1-4yY",
+  authDomain: "parkos-lot.firebaseapp.com",
+  projectId: "parkos-lot",
+  storageBucket: "parkos-lot.firebasestorage.app",
+  messagingSenderId: "945953655937",
+  appId: "1:945953655937:web:afd284b5e77ef436289180",
+};
+
+const app  = initializeApp(FIREBASE_CONFIG);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// ═══════════════════════════════════════════════════════════
+//  Get user role from Firestore
+// ═══════════════════════════════════════════════════════════
+async function getRole(user) {
+  try {
+    console.log("Checking role for UID:", user.uid);
+    const snap = await getDoc(doc(db, "users", user.uid));
+    if (snap.exists()) {
+      const role = snap.data().role;
+      console.log("Role found:", role);
+      return role || "viewer";
+    } else {
+      console.log("No Firestore document found for this user, defaulting to viewer");
+      return "viewer";
+    }
+  } catch (e) {
+    console.error("Error fetching role:", e);
+    return "viewer";
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Redirect based on role
+// ═══════════════════════════════════════════════════════════
+function redirect(role) {
+  console.log("Redirecting as:", role);
+  if (role === "admin") {
+    window.location.href = "admin.html";
+  } else {
+    window.location.href = "viewer.html";
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Auth state listener — auto-redirect if already signed in
+// ═══════════════════════════════════════════════════════════
+onAuthStateChanged(auth, async user => {
+  if (user) {
+    console.log("User already signed in:", user.email);
+    const role = await getRole(user);
+    redirect(role);
+  } else {
+    console.log("No user signed in, showing login form");
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
+//  Login function
+// ═══════════════════════════════════════════════════════════
+function showError(msg) {
+  const el = document.getElementById("error-box");
+  el.textContent = msg;
+  el.classList.add("show");
+}
+
+window.doLogin = async function() {
+  const email    = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  const btn      = document.getElementById("btn-login");
+
+  if (!email || !password) {
+    showError("Please enter email and password.");
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Signing in…';
+  document.getElementById("error-box").classList.remove("show");
+
+  try {
+    console.log("Attempting login for:", email);
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    console.log("Login successful!");
+    const role = await getRole(cred.user);
+    redirect(role);
+  } catch (err) {
+    console.error("Login error:", err);
+    btn.disabled = false;
+    btn.textContent = "Sign in";
+    
+    const msgs = {
+      "auth/user-not-found":     "No account found with this email.",
+      "auth/wrong-password":     "Incorrect password.",
+      "auth/invalid-email":      "Invalid email address.",
+      "auth/invalid-credential": "Invalid email or password.",
+      "auth/too-many-requests":  "Too many attempts. Try again later.",
+    };
+    showError(msgs[err.code] || "Sign-in failed: " + err.message);
+  }
+};
+
+// ═══════════════════════════════════════════════════════════
+//  Enter key to login
+// ═══════════════════════════════════════════════════════════
+document.getElementById("password").addEventListener("keydown", e => {
+  if (e.key === "Enter") window.doLogin();
+});
+</script>
+</body>
+</html>

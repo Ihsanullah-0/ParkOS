@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>ParkOS Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0e14;--bg2:#111520;--bg3:#181d2a;
+  --border:#1e2535;--border2:#2a3247;
+  --text:#e8eaf0;--muted:#7a8099;
+  --accent:#00c9a7;--accent2:#4f7cff;
+  --warn:#f5a623;--danger:#f04b4b;--green:#2ecc71;--purple:#9b7fe8;
+  --font:'Sora',sans-serif;--mono:'DM Mono',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;font-size:14px}
+.shell{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column}
+.main-rel{position:relative;display:flex;flex-direction:column;flex:1;overflow:hidden}
+
+.logo{padding:22px 20px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.logo-icon{width:32px;height:32px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center}
+.logo-icon svg{width:18px;height:18px;fill:var(--bg)}
+.logo-text{font-size:15px;font-weight:600}
+.logo-sub{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+
+.nav{padding:10px 0;flex:1;overflow-y:auto}
+.nav-label{font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;padding:8px 20px 5px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;color:var(--muted);font-size:13px;border-left:3px solid transparent;transition:all .15s}
+.nav-item:hover{color:var(--text);background:var(--bg3)}
+.nav-item.active{color:var(--accent);background:rgba(0,201,167,.06);border-left-color:var(--accent)}
+.nav-item svg{width:15px;height:15px;flex-shrink:0}
+
+.sidebar-footer{padding:14px 20px;border-top:1px solid var(--border)}
+.user-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.user-avatar{width:30px;height:30px;border-radius:50%;background:rgba(0,201,167,.15);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:var(--accent)}
+.user-name{font-size:12px;font-weight:500}
+.user-role{font-size:10px;color:var(--muted)}
+.btn-signout{width:100%;padding:7px;background:transparent;border:1px solid var(--border2);border-radius:8px;color:var(--muted);font-family:var(--font);font-size:12px;cursor:pointer;transition:all .15s}
+.btn-signout:hover{border-color:var(--danger);color:var(--danger)}
+
+.lot-health{font-size:11px;color:var(--muted);margin-bottom:6px;margin-top:10px}
+.health-bar{height:3px;background:var(--border2);border-radius:2px;overflow:hidden}
+.health-fill{height:100%;border-radius:2px;transition:width .5s}
+
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 28px;height:54px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.page-title{font-size:15px;font-weight:500}
+.page-sub{font-size:12px;color:var(--muted)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.clock{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.badge-live{padding:3px 10px;border-radius:20px;font-size:11px;background:rgba(46,204,113,.1);color:#2ecc71;border:1px solid rgba(46,204,113,.2);display:flex;align-items:center;gap:5px}
+.dot-live{width:5px;height:5px;border-radius:50%;background:#2ecc71;animation:pulse 1.4s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
+
+.content{flex:1;padding:22px 26px;overflow-y:auto}
+.page{display:none}.page.active{display:block}
+
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:15px 16px}
+.stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:7px}
+.stat-val{font-size:24px;font-weight:600;font-family:var(--mono);line-height:1}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:5px}
+.c-accent{color:var(--accent)}.c-warn{color:var(--warn)}.c-danger{color:var(--danger)}.c-green{color:var(--green)}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:16px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px}
+.card-title{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+
+.chart-box{position:relative;width:100%}
+
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{padding:8px 12px;text-align:left;color:var(--muted);font-weight:500;font-size:10px;text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid var(--border)}
+td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text);font-size:12px}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.015)}
+.table-wrap{overflow-x:auto}
+
+.pill{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:500;font-family:var(--mono)}
+.pill.general{background:rgba(79,124,255,.12);color:#4f7cff}
+.pill.vip{background:rgba(155,127,232,.12);color:#9b7fe8}
+.pill.bus{background:rgba(245,166,35,.12);color:#f5a623}
+.pill.disabled{background:rgba(0,201,167,.12);color:#00c9a7}
+.pill.admin{background:rgba(0,201,167,.12);color:#00c9a7}
+.pill.viewer{background:rgba(79,124,255,.12);color:#4f7cff}
+
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+.form-input{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;color:var(--text);font-family:var(--font);font-size:13px;outline:none;transition:border-color .15s}
+.form-input:focus{border-color:var(--accent)}
+.form-select{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;color:var(--text);font-family:var(--font);font-size:13px;outline:none;appearance:none;cursor:pointer}
+
+.btn{padding:8px 15px;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-family:var(--font);transition:all .15s}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.btn.primary:hover{opacity:.85}
+.btn.danger-btn{background:rgba(240,75,75,.08);color:var(--danger);border-color:rgba(240,75,75,.2)}
+.btn.pdf-btn{background:rgba(79,124,255,.1);color:var(--accent2);border-color:rgba(79,124,255,.25)}
+.btn.pdf-btn:hover{background:rgba(79,124,255,.2)}
+
+.space-info-box{padding:10px 14px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--muted);margin-bottom:14px}
+
+.ticket-card{background:var(--bg2);border:1px solid var(--accent);border-radius:12px;padding:18px;margin-top:14px;display:none}
+.ticket-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.t-row{padding:8px 0;border-bottom:1px solid var(--border)}
+.t-row:last-child{border-bottom:none}
+.t-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+.t-val{font-size:13px;font-weight:500}
+
+.exit-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px;margin-top:14px;display:none}
+.fee-box{background:rgba(0,201,167,.06);border:1px solid rgba(0,201,167,.18);border-radius:10px;padding:14px;text-align:center;margin:12px 0}
+.fee-label{font-size:11px;color:var(--muted);margin-bottom:4px}
+.fee-val{font-size:30px;font-weight:600;font-family:var(--mono);color:var(--accent)}
+
+.receipt-card{background:var(--bg2);border:1px solid var(--green);border-radius:12px;padding:18px;margin-top:14px;display:none}
+
+.feed-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px}
+.feed-item:last-child{border-bottom:none}
+.feed-icon{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.feed-icon svg{width:13px;height:13px}
+.feed-time{font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:auto;white-space:nowrap}
+
+.toast-wrap{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:999}
+.toast{background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:11px 15px;font-size:13px;min-width:220px;display:flex;align-items:center;gap:9px;animation:sli .2s ease;border-left:3px solid var(--accent)}
+.toast.err{border-left-color:var(--danger)}.toast.wrn{border-left-color:var(--warn)}
+@keyframes sli{from{transform:translateX(16px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+.ring-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px}
+.ring-row:last-child{border-bottom:none}
+.ring-dot{width:7px;height:7px;border-radius:50%;margin-right:6px;display:inline-block}
+
+.occ-bar-wrap{margin:4px 0 8px}
+.occ-bar{height:5px;background:var(--border2);border-radius:3px;overflow:hidden}
+.occ-fill{height:100%;border-radius:3px;transition:width .5s}
+
+.gate-card{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:11px}
+.gate-name{font-size:11px;font-weight:500;color:var(--muted);margin-bottom:5px}
+.gate-count{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:3px}
+
+.modal-overlay{display:none;position:absolute;inset:0;background:rgba(0,0,0,.65);z-index:200;align-items:flex-start;justify-content:center;padding-top:60px}
+.modal-overlay.open{display:flex}
+.modal-box{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;width:400px;overflow:hidden}
+.modal-head{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-title{font-size:14px;font-weight:500}
+.modal-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px}
+.modal-body{padding:18px}
+.modal-foot{padding:12px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+
+.online-dot{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;margin-right:5px}
+
+.syncing{font-size:10px;color:var(--muted);font-family:var(--mono)}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></div>
+    <div><div class="logo-text">ParkOS</div><div class="logo-sub">Admin</div></div>
+  </div>
+  <nav class="nav">
+    <div class="nav-label">Overview</div>
+    <div class="nav-item active" onclick="nav('dashboard',this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>Dashboard</div>
+    <div class="nav-item" onclick="nav('vehicles',this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>Parked vehicles</div>
+    <div class="nav-item" onclick="nav('gates',this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 11V3H7v4H3v14h8v-4h2v4h8V11h-4zm-8 4H7v-2h2v2zm0-4H7V9h2v2zm0-4H7V5h2v2zm4 8h-2v-2h2v2zm0-4h-2V9h2v2zm0-4h-2V5h2v2zm6 12h-2v-2h2v2zm0-4h-2v-2h2v2z"/></svg>Gates</div>
+    <div class="nav-label">Operations</div>
+    <div class="nav-item" onclick="nav('entry',this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 7L9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5-5-5zm9 12h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v14z"/></svg>Vehicle entry</div>
+    <div class="nav-item" onclick="nav('exit',this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>Vehicle exit</div>
+    <div class="nav-label">Reports</div>
+    <div class="nav-item" onclick="nav('logs',this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>Logs & reports</div>
+    <div class="nav-item" onclick="nav('users',this)"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>Users</div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-row">
+      <div class="user-avatar" id="user-initials">?</div>
+      <div><div class="user-name" id="user-name">Loading…</div><div class="user-role"><span class="online-dot"></span><span class="pill admin" style="font-size:9px">Admin</span></div></div>
+    </div>
+    <button class="btn-signout" onclick="doSignOut()">Sign out</button>
+    <div class="lot-health">Lot health — <span id="health-pct">–</span></div>
+    <div class="health-bar"><div class="health-fill" id="health-fill" style="width:0%"></div></div>
+    <div class="syncing" id="sync-status" style="margin-top:6px">Connecting…</div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main-rel">
+  <header class="topbar">
+    <div><div class="page-title" id="top-title">Dashboard</div><div class="page-sub" id="top-sub">Live overview</div></div>
+    <div class="topbar-right">
+      <span class="clock" id="clock"></span>
+      <div class="badge-live"><div class="dot-live"></div>Live</div>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Capacity</div><div class="stat-val c-accent" id="s-cap">200</div><div class="stat-sub">Total spaces</div></div>
+        <div class="stat-card"><div class="stat-label">Parked now</div><div class="stat-val" id="s-occ">0</div><div class="stat-sub" id="s-pct">0% utilization</div></div>
+        <div class="stat-card"><div class="stat-label">Available</div><div class="stat-val c-accent" id="s-free">200</div><div class="stat-sub">Open spots</div></div>
+        <div class="stat-card"><div class="stat-label">Revenue today</div><div class="stat-val c-green" id="s-rev">0</div><div class="stat-sub">RWF collected</div></div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title">Occupancy by type</div>
+          <div style="display:flex;align-items:center;gap:16px">
+            <canvas id="donut" width="110" height="110" style="width:110px;height:110px;flex-shrink:0" role="img" aria-label="Occupancy by vehicle type donut chart"></canvas>
+            <div style="flex:1" id="type-rows"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Hourly arrivals</div>
+          <div class="chart-box" style="height:160px"><canvas id="arrivals-chart" role="img" aria-label="Hourly arrivals bar chart"></canvas></div>
+        </div>
+      </div>
+      <div class="grid3">
+        <div class="card"><div class="card-title">Entry gates</div><div id="entry-gate-dash"></div></div>
+        <div class="card"><div class="card-title">Exit gates</div><div id="exit-gate-dash"></div></div>
+        <div class="card">
+          <div class="card-title">Revenue trend</div>
+          <div style="font-size:24px;font-weight:600;font-family:var(--mono);color:var(--accent);margin-bottom:4px" id="rev-big">0 RWF</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:10px" id="rev-sub">from 0 exits</div>
+          <div class="chart-box" style="height:90px"><canvas id="rev-chart" role="img" aria-label="Revenue trend line chart"></canvas></div>
+        </div>
+      </div>
+      <div class="card"><div class="card-title">Activity feed <span id="feed-count" style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted)"></span></div><div id="feed"></div></div>
+    </div>
+
+    <!-- VEHICLES -->
+    <div class="page" id="page-vehicles">
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <input class="form-input" id="veh-search" placeholder="Search plate, type, gate…" style="max-width:240px" oninput="renderVehicles()"/>
+        <select class="form-select" id="veh-filter" style="width:130px" onchange="renderVehicles()">
+          <option value="">All types</option><option>General</option><option>VIP</option><option>Bus</option><option>Disabled</option>
+        </select>
+        <span style="margin-left:auto;font-size:12px;color:var(--muted);align-self:center" id="veh-count"></span>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table><thead><tr><th>Plate</th><th>Type</th><th>Spot</th><th>Entry gate</th><th>Time in</th><th>Duration</th><th>Est. fee</th><th>Ticket</th><th>Action</th></tr></thead>
+          <tbody id="veh-tbody"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- GATES -->
+    <div class="page" id="page-gates">
+      <div class="grid2" style="margin-bottom:16px">
+        <div class="card"><div class="card-title">Entry gates</div><div id="entry-gate-detail"></div></div>
+        <div class="card"><div class="card-title">Exit gates</div><div id="exit-gate-detail"></div></div>
+      </div>
+      <div class="card"><div class="card-title">Gate throughput</div><div class="chart-box" style="height:200px"><canvas id="gate-chart" role="img" aria-label="Gate throughput bar chart"></canvas></div></div>
+    </div>
+
+    <!-- ENTRY -->
+    <div class="page" id="page-entry">
+      <div style="max-width:500px">
+        <div class="card">
+          <div class="card-title">New vehicle arrival</div>
+          <div class="form-group">
+            <label class="form-label">Plate number</label>
+            <input class="form-input" id="entry-plate" placeholder="e.g. RAB 123 A" style="text-transform:uppercase"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Vehicle type</label>
+            <select class="form-select" id="entry-type" onchange="refreshSpaceInfo()">
+              <option value="General">General (0.5 RWF/min)</option>
+              <option value="VIP">VIP (1.5 RWF/min)</option>
+              <option value="Bus">Bus (0.8 RWF/min)</option>
+              <option value="Disabled">Disabled (Free)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Entry gate</label>
+            <select class="form-select" id="entry-gate">
+              <option>Gate A</option><option>Gate B</option><option>Gate C</option><option>Gate D</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Driver name (optional)</label>
+            <input class="form-input" id="entry-driver" placeholder="e.g. Jean Pierre"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phone (optional)</label>
+            <input class="form-input" id="entry-phone" placeholder="e.g. +250 7XX XXX XXX"/>
+          </div>
+          <div class="space-info-box" id="space-info">Select vehicle type to see availability.</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn primary" onclick="doEntry()">Admit vehicle</button>
+            <button class="btn" onclick="clearEntry()">Clear form</button>
+          </div>
+        </div>
+        <div class="ticket-card" id="ticket-card">
+          <div class="card-title" style="color:var(--accent)">Entry ticket issued
+            <div style="display:flex;gap:6px">
+              <button class="btn pdf-btn" onclick="downloadTicket('entry')" style="padding:4px 10px;font-size:11px">Download PDF</button>
+              <button class="btn" onclick="printTicket('entry')" style="padding:4px 10px;font-size:11px">Print</button>
+            </div>
+          </div>
+          <div class="ticket-grid" id="ticket-body"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXIT -->
+    <div class="page" id="page-exit">
+      <div style="max-width:500px">
+        <div class="card">
+          <div class="card-title">Process vehicle exit</div>
+          <div class="form-group">
+            <label class="form-label">Plate number</label>
+            <div style="display:flex;gap:8px">
+              <input class="form-input" id="exit-plate" placeholder="Enter plate to look up" style="text-transform:uppercase"/>
+              <button class="btn" onclick="lookupExit()">Look up</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Exit gate</label>
+            <select class="form-select" id="exit-gate"><option>Gate X</option><option>Gate Y</option><option>Gate Z</option></select>
+          </div>
+        </div>
+        <div class="exit-card" id="exit-card">
+          <div class="card-title">Exit summary</div>
+          <div id="exit-summary-body"></div>
+          <div class="fee-box"><div class="fee-label">Fee to collect</div><div class="fee-val" id="exit-fee-val">0 RWF</div></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn primary" onclick="confirmExit()">Confirm exit & collect</button>
+            <button class="btn" onclick="cancelExit()">Cancel</button>
+          </div>
+        </div>
+        <div class="receipt-card" id="receipt-card">
+          <div class="card-title" style="color:var(--green)">Exit confirmed
+            <div style="display:flex;gap:6px">
+              <button class="btn pdf-btn" onclick="downloadTicket('exit')" style="padding:4px 10px;font-size:11px">Download receipt PDF</button>
+              <button class="btn" onclick="printTicket('exit')" style="padding:4px 10px;font-size:11px">Print</button>
+            </div>
+          </div>
+          <div class="ticket-grid" id="receipt-body"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOGS -->
+    <div class="page" id="page-logs">
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <button class="btn" id="lt-entry" onclick="showLogTab('entry')" style="border-color:var(--accent);color:var(--accent)">Entry log</button>
+        <button class="btn" id="lt-exit" onclick="showLogTab('exit')">Exit log</button>
+        <button class="btn" id="lt-denied" onclick="showLogTab('denied')">Turned away</button>
+        <button class="btn pdf-btn" style="margin-left:auto" onclick="exportLogsPDF()">Export PDF report</button>
+      </div>
+      <div class="card" id="log-entry-pane">
+        <div class="card-title">Entry log</div>
+        <div class="table-wrap"><table><thead><tr><th>Time</th><th>Plate</th><th>Type</th><th>Gate</th><th>Spot</th><th>Driver</th><th>Ticket</th></tr></thead><tbody id="log-entry-tbody"></tbody></table></div>
+      </div>
+      <div class="card" id="log-exit-pane" style="display:none">
+        <div class="card-title">Exit log</div>
+        <div class="table-wrap"><table><thead><tr><th>Time</th><th>Plate</th><th>Type</th><th>Gate</th><th>Duration</th><th>Fee</th><th>Receipt</th></tr></thead><tbody id="log-exit-tbody"></tbody></table></div>
+      </div>
+      <div class="card" id="log-denied-pane" style="display:none">
+        <div class="card-title">Turned away</div>
+        <div class="table-wrap"><table><thead><tr><th>Time</th><th>Type</th><th>Gate</th><th>Reason</th></tr></thead><tbody id="log-denied-tbody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- USERS -->
+    <div class="page" id="page-users">
+      <div class="card" style="max-width:540px">
+        <div class="card-title">System users</div>
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Users are managed in Firebase Authentication. Assign roles by adding a <code style="background:var(--bg3);padding:1px 5px;border-radius:4px">role</code> field to each user document in Firestore under the <code style="background:var(--bg3);padding:1px 5px;border-radius:4px">users</code> collection.</p>
+        <div class="table-wrap">
+          <table><thead><tr><th>Email</th><th>Role</th><th>UID</th></tr></thead>
+          <tbody id="users-tbody"><tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px">Sign in to see users</td></tr></tbody>
+          </table>
+        </div>
+        <div style="margin-top:16px;padding:12px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--muted)">
+          To add users: Firebase Console → Authentication → Add user. Then create a document in Firestore <b>users/{uid}</b> with field <b>role: "admin"</b> or <b>role: "viewer"</b>.
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- MODAL -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-head"><span class="modal-title" id="modal-title">Confirm</span><button class="modal-close" onclick="closeModal()">×</button></div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-foot" id="modal-foot"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<!-- HIDDEN PRINT FRAME -->
+<iframe id="print-frame" style="display:none"></iframe>
+
+<script type="module">
+import { initializeApp }          from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  getFirestore, collection, doc, setDoc, deleteDoc,
+  onSnapshot, query, orderBy, limit, serverTimestamp, getDoc, getDocs
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ── CONFIG (replace with yours) ─────────────────────────
+const FB = {
+  apiKey: "AIzaSyBQbBm2Ykn3hZRMdpQ5XgvOvJsjFk1-4yY",
+  authDomain: "parkos-lot.firebaseapp.com",
+  projectId: "parkos-lot",
+  storageBucket: "parkos-lot.firebasestorage.app",
+  messagingSenderId: "945953655937",
+  appId: "1:945953655937:web:afd284b5e77ef436289180"
+};
+const ROLE_MAP = { /*"admin@co.com":"admin"*/ };
+
+const PARKING = {
+  capacity:200,
+  types:{General:{spaces:130,rate:.5,color:"#4f7cff"},VIP:{spaces:20,rate:1.5,color:"#9b7fe8"},Bus:{spaces:30,rate:.8,color:"#f5a623"},Disabled:{spaces:20,rate:0,color:"#00c9a7"}},
+  entryGates:["Gate A","Gate B","Gate C","Gate D"],exitGates:["Gate X","Gate Y","Gate Z"],
+  currency:"RWF"
+};
+
+// ── INIT FIREBASE ──────────────────────────────────────
+const app  = initializeApp(FB);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// ── LOCAL STATE ────────────────────────────────────────
+const S = {
+  user:null, role:null,
+  parked:{}, occupancy:{General:0,VIP:0,Bus:0,Disabled:0},
+  entryGC:{"Gate A":0,"Gate B":0,"Gate C":0,"Gate D":0},
+  exitGC:{"Gate X":0,"Gate Y":0,"Gate Z":0},
+  entryLog:[], exitLog:[], deniedLog:[],
+  revenue:0, revHistory:[], hourly:Array(24).fill(0),
+  pendingExit:null, lastTicket:null, lastReceipt:null, activities:[],
+  spotCtr:1
+};
+
+let donutChart, arrChart, revChart2, gateChart2;
+const pageMeta = {
+  dashboard:{t:"Dashboard",s:"Live overview"},vehicles:{t:"Parked vehicles",s:"All vehicles in lot"},
+  gates:{t:"Gates",s:"Entry and exit gate status"},entry:{t:"Vehicle entry",s:"Admit a new vehicle"},
+  exit:{t:"Vehicle exit",s:"Process a departure"},logs:{t:"Logs & reports",s:"Audit trail"},
+  users:{t:"Users",s:"System access management"}
+};
+
+// ── AUTH ───────────────────────────────────────────────
+onAuthStateChanged(auth, async user => {
+  if(!user){ window.location.href="index.html"; return; }
+  S.user = user;
+  try{
+    const snap = await getDoc(doc(db,"users",user.uid));
+    S.role = (snap.exists()&&snap.data().role) ? snap.data().role : (ROLE_MAP[user.email]||"viewer");
+  }catch{S.role="viewer";}
+  if(S.role!=="admin"){ window.location.href="viewer.html"; return; }
+  const initials = (user.displayName||user.email||"?").slice(0,2).toUpperCase();
+  document.getElementById("user-initials").textContent = initials;
+  document.getElementById("user-name").textContent = user.displayName || user.email;
+  document.getElementById("sync-status").textContent = "● Connected";
+  subscribeFirestore();
+  initCharts();
+});
+
+window.doSignOut = ()=> signOut(auth).then(()=>{ window.location.href="index.html"; });
+
+// ── FIRESTORE REALTIME LISTENERS ───────────────────────
+function subscribeFirestore(){
+  // parked vehicles
+  onSnapshot(collection(db,"parked"), snap => {
+    S.parked = {};
+    S.occupancy = {General:0,VIP:0,Bus:0,Disabled:0};
+    snap.forEach(d=>{
+      const v = d.data();
+      S.parked[d.id] = {...v, entryTime: v.entryTime?.toDate ? v.entryTime.toDate() : new Date(v.entryTime)};
+      S.occupancy[v.type] = (S.occupancy[v.type]||0)+1;
+    });
+    refreshDash();
+  });
+  // entry log
+  onSnapshot(query(collection(db,"entryLog"),orderBy("ts","desc"),limit(50)), snap=>{
+    S.entryLog=[]; snap.forEach(d=>S.entryLog.push(d.data())); renderLogs();
+  });
+  // exit log
+  onSnapshot(query(collection(db,"exitLog"),orderBy("ts","desc"),limit(50)), snap=>{
+    S.exitLog=[]; S.revenue=0;
+    snap.forEach(d=>{ const v=d.data(); S.exitLog.push(v); S.revenue+=(v.fee||0); });
+    refreshDash(); renderLogs();
+  });
+  // denied log
+  onSnapshot(query(collection(db,"deniedLog"),orderBy("ts","desc"),limit(50)), snap=>{
+    S.deniedLog=[]; snap.forEach(d=>S.deniedLog.push(d.data())); renderLogs();
+  });
+}
+
+// ── HELPERS ────────────────────────────────────────────
+const fmt = d => d instanceof Date ? d.toTimeString().slice(0,8) : "--:--:--";
+const dur = ms=>{ const m=Math.floor(ms/60000); return m<60?m+" min":Math.floor(m/60)+"h "+(m%60)+"m"; };
+const fee = (type,ms)=> Math.round((PARKING.types[type]?.rate||0)*ms/60000);
+const spot = type=>{ const p={General:"G",VIP:"V",Bus:"B",Disabled:"D"}; return (p[type]||"X")+String(S.spotCtr++).padStart(3,"0"); };
+const totOcc = ()=> Object.values(S.occupancy).reduce((a,b)=>a+b,0);
+const avail  = type=> (PARKING.types[type]?.spaces||0) - (S.occupancy[type]||0);
+const ts = ()=> new Date().toTimeString().slice(0,8);
+
+function toast(msg,type="ok"){
+  const w=document.getElementById("toast-wrap");
+  const t=document.createElement("div");
+  t.className="toast"+(type==="err"?" err":type==="wrn"?" wrn":"");
+  t.textContent=msg; w.appendChild(t);
+  setTimeout(()=>t.remove(),3500);
+}
+function addActivity(icon,msg,sub,color){
+  S.activities.unshift({icon,msg,sub,color,time:ts()});
+  if(S.activities.length>60)S.activities.pop();
+  renderFeed();
+}
+function renderFeed(){
+  const el=document.getElementById("feed");
+  document.getElementById("feed-count").textContent=S.activities.length+" events";
+  el.innerHTML=S.activities.slice(0,10).map(a=>`
+    <div class="feed-item">
+      <div class="feed-icon" style="background:${a.color}22"><svg viewBox="0 0 24 24" fill="${a.color}" width="13" height="13">${a.icon}</svg></div>
+      <div><div>${a.msg}</div><div style="font-size:11px;color:var(--muted)">${a.sub}</div></div>
+      <span class="feed-time">${a.time}</span>
+    </div>`).join("");
+}
+
+// ── DASHBOARD ──────────────────────────────────────────
+function refreshDash(){
+  const occ=totOcc(), free=PARKING.capacity-occ, pct=Math.round(occ/PARKING.capacity*100);
+  document.getElementById("s-occ").textContent=occ;
+  document.getElementById("s-free").textContent=free;
+  document.getElementById("s-pct").textContent=pct+"% utilization";
+  document.getElementById("s-rev").textContent=S.revenue.toLocaleString();
+  document.getElementById("rev-big").textContent=S.revenue.toLocaleString()+" RWF";
+  document.getElementById("rev-sub").textContent="from "+S.exitLog.length+" exits";
+  const hp=Math.round(free/PARKING.capacity*100);
+  document.getElementById("health-pct").textContent=hp+"%";
+  const hf=document.getElementById("health-fill");
+  hf.style.width=hp+"%"; hf.style.background=hp>50?"#00c9a7":hp>20?"#f5a623":"#f04b4b";
+  // type rows
+  const types=Object.keys(PARKING.types);
+  document.getElementById("type-rows").innerHTML=types.map(t=>{
+    const u=S.occupancy[t]||0,tot=PARKING.types[t].spaces,p=Math.round(u/tot*100);
+    return `<div class="ring-row"><span><span class="ring-dot" style="background:${PARKING.types[t].color}"></span>${t}</span><span style="font-family:var(--mono)">${u}/${tot}</span></div>
+    <div class="occ-bar-wrap"><div class="occ-bar"><div class="occ-fill" style="width:${p}%;background:${PARKING.types[t].color}"></div></div></div>`;
+  }).join("");
+  updateDonut();
+  // gate dash
+  document.getElementById("entry-gate-dash").innerHTML=PARKING.entryGates.map(g=>`
+    <div class="gate-card"><div class="gate-name">${g}</div><div style="display:flex;align-items:center;gap:6px;font-size:11px"><div class="gate-dot" style="width:6px;height:6px;border-radius:50%;background:#2ecc71"></div>Open</div><div class="gate-count">${S.entryGC[g]||0} processed</div></div>`).join("");
+  document.getElementById("exit-gate-dash").innerHTML=PARKING.exitGates.map(g=>`
+    <div class="gate-card"><div class="gate-name">${g}</div><div style="display:flex;align-items:center;gap:6px;font-size:11px"><div class="gate-dot" style="width:6px;height:6px;border-radius:50%;background:#2ecc71"></div>Open</div><div class="gate-count">${S.exitGC[g]||0} processed</div></div>`).join("");
+  renderVehicles(); refreshSpaceInfo(); renderGates();
+}
+
+function updateDonut(){
+  if(!donutChart)return;
+  donutChart.data.datasets[0].data=Object.keys(PARKING.types).map(t=>S.occupancy[t]||0);
+  donutChart.update("none");
+}
+
+// ── CHARTS ─────────────────────────────────────────────
+function initCharts(){
+  donutChart=new Chart(document.getElementById("donut"),{type:"doughnut",
+    data:{labels:Object.keys(PARKING.types),datasets:[{data:Object.values(S.occupancy),backgroundColor:Object.values(PARKING.types).map(t=>t.color),borderWidth:0}]},
+    options:{responsive:false,cutout:"72%",plugins:{legend:{display:false}}}});
+  arrChart=new Chart(document.getElementById("arrivals-chart"),{type:"bar",
+    data:{labels:Array.from({length:24},(_,i)=>i+":00"),datasets:[{label:"Arrivals",data:[...S.hourly],backgroundColor:"rgba(79,124,255,.5)",borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:"#7a8099",font:{size:10},autoSkip:true,maxTicksLimit:8},grid:{color:"rgba(255,255,255,.04)"}},y:{ticks:{color:"#7a8099",font:{size:10}},grid:{color:"rgba(255,255,255,.04)"},beginAtZero:true}}}});
+  revChart2=new Chart(document.getElementById("rev-chart"),{type:"line",
+    data:{labels:[],datasets:[{data:[],borderColor:"#00c9a7",borderWidth:2,fill:false,tension:.4,pointRadius:2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{ticks:{color:"#7a8099",font:{size:10}},grid:{color:"rgba(255,255,255,.04)"},beginAtZero:true}}}});
+  gateChart2=new Chart(document.getElementById("gate-chart"),{type:"bar",
+    data:{labels:[...PARKING.entryGates,...PARKING.exitGates],datasets:[{label:"Processed",data:Array(7).fill(0),backgroundColor:[...PARKING.entryGates.map(()=>"rgba(79,124,255,.55)"),...PARKING.exitGates.map(()=>"rgba(0,201,167,.55)")],borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:"#7a8099",font:{size:11}},grid:{color:"rgba(255,255,255,.04)"}},y:{ticks:{color:"#7a8099",font:{size:10}},grid:{color:"rgba(255,255,255,.04)"},beginAtZero:true}}}});
+}
+
+function updateArrChart(){ if(arrChart){arrChart.data.datasets[0].data=[...S.hourly];arrChart.update("none");} }
+function updateRevChart(){
+  if(!revChart2)return;
+  revChart2.data.labels=S.revHistory.map(r=>r.t);
+  revChart2.data.datasets[0].data=S.revHistory.map(r=>r.v);
+  revChart2.update("none");
+}
+function renderGates(){
+  const ed=document.getElementById("entry-gate-detail"),xd=document.getElementById("exit-gate-detail");
+  if(!ed)return;
+  ed.innerHTML=PARKING.entryGates.map(g=>`<div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px"><span>${g}</span><span style="font-family:var(--mono);color:var(--accent)">${S.entryGC[g]||0} vehicles</span></div>`).join("");
+  xd.innerHTML=PARKING.exitGates.map(g=>`<div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px"><span>${g}</span><span style="font-family:var(--mono);color:var(--green)">${S.exitGC[g]||0} vehicles</span></div>`).join("");
+  if(gateChart2){
+    gateChart2.data.datasets[0].data=[...PARKING.entryGates.map(g=>S.entryGC[g]||0),...PARKING.exitGates.map(g=>S.exitGC[g]||0)];
+    gateChart2.update("none");
+  }
+}
+
+// ── VEHICLE TABLE ──────────────────────────────────────
+window.renderVehicles = function(){
+  const search=(document.getElementById("veh-search")||{value:""}).value.toLowerCase();
+  const filter=(document.getElementById("veh-filter")||{value:""}).value;
+  const tb=document.getElementById("veh-tbody"); if(!tb)return;
+  const entries=Object.entries(S.parked).filter(([p,v])=>{
+    return (!search||p.toLowerCase().includes(search)||v.type.toLowerCase().includes(search)||v.gate.toLowerCase().includes(search))&&(!filter||v.type===filter);
+  });
+  document.getElementById("veh-count").textContent=entries.length+" vehicles";
+  if(!entries.length){tb.innerHTML=`<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:24px">No vehicles found</td></tr>`;return;}
+  tb.innerHTML=entries.map(([plate,v])=>{
+    const ms=Date.now()-v.entryTime; const f=fee(v.type,ms);
+    return `<tr>
+      <td style="font-family:var(--mono);font-weight:500">${plate}</td>
+      <td><span class="pill ${v.type.toLowerCase()}">${v.type}</span></td>
+      <td style="font-family:var(--mono)">${v.spot||"–"}</td>
+      <td>${v.gate}</td>
+      <td style="font-family:var(--mono)">${fmt(v.entryTime)}</td>
+      <td>${dur(ms)}</td>
+      <td style="font-family:var(--mono)">${f} RWF</td>
+      <td><button class="btn pdf-btn" style="padding:3px 8px;font-size:10px" onclick="reissueTicket('${plate}')">PDF</button></td>
+      <td><button class="btn danger-btn" style="padding:3px 8px;font-size:10px" onclick="quickExit('${plate}')">Exit</button></td>
+    </tr>`;
+  }).join("");
+};
+
+window.quickExit = plate=>{
+  document.getElementById("exit-plate").value=plate;
+  nav("exit",null); lookupExit();
+};
+
+window.reissueTicket = plate=>{
+  const v=S.parked[plate]; if(!v)return;
+  S.lastTicket={plate,type:v.type,gate:v.gate,spot:v.spot,entryTime:v.entryTime,driver:v.driver||"–",phone:v.phone||"–"};
+  downloadTicket("entry");
+};
+
+// ── SPACE INFO ─────────────────────────────────────────
+window.refreshSpaceInfo = function(){
+  const sel=document.getElementById("entry-type"); if(!sel)return;
+  const type=sel.value, a=avail(type), tot=PARKING.types[type].spaces, occ=S.occupancy[type]||0;
+  const pct=Math.round(occ/tot*100), col=a>5?"var(--accent)":a>0?"var(--warn)":"var(--danger)";
+  document.getElementById("space-info").innerHTML=`<span style="color:${col};font-weight:500">${a} spots available</span> of ${tot} for ${type} · ${pct}% full · Rate: ${PARKING.types[type].rate||"Free"} RWF/min`;
+};
+
+// ── ENTRY ──────────────────────────────────────────────
+window.doEntry = async function(){
+  const plate=document.getElementById("entry-plate").value.trim().toUpperCase();
+  const type=document.getElementById("entry-type").value;
+  const gate=document.getElementById("entry-gate").value;
+  const driver=document.getElementById("entry-driver").value.trim();
+  const phone=document.getElementById("entry-phone").value.trim();
+  if(!plate){toast("Enter a plate number","wrn");return;}
+  if(S.parked[plate]){toast(plate+" is already parked","err");return;}
+  if(totOcc()>=PARKING.capacity){
+    await setDoc(doc(db,"deniedLog",Date.now()+""),{time:ts(),type,gate,reason:"Lot full",ts:serverTimestamp()});
+    toast("Lot is full — vehicle turned away","err");
+    addActivity('<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>','Turned away','Lot full','#f04b4b');
+    return;
+  }
+  if(avail(type)<=0){
+    await setDoc(doc(db,"deniedLog",Date.now()+""),{time:ts(),type,gate,reason:"No "+type+" spaces",ts:serverTimestamp()});
+    toast("No "+type+" spaces available","err"); return;
+  }
+  const sp=spot(type), entryTime=new Date();
+  const rec={type,gate,spot:sp,driver,phone,entryTime:entryTime.toISOString(),ts:serverTimestamp()};
+  await setDoc(doc(db,"parked",plate),rec);
+  await setDoc(doc(db,"entryLog",plate+"_"+Date.now()),{time:ts(),plate,type,gate,spot:sp,driver,ts:serverTimestamp()});
+  S.entryGC[gate]=(S.entryGC[gate]||0)+1;
+  S.hourly[entryTime.getHours()]++;
+  updateArrChart();
+  S.lastTicket={plate,type,gate,spot:sp,entryTime,driver:driver||"–",phone:phone||"–"};
+  showEntryTicket(S.lastTicket);
+  addActivity('<path d="M11 7L9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5-5-5zm9 12h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v14z"/>',plate+" admitted",type+" · "+sp+" · "+gate,'#4f7cff');
+  toast(plate+" admitted to spot "+sp);
+};
+
+function showEntryTicket(d){
+  document.getElementById("ticket-card").style.display="block";
+  document.getElementById("ticket-body").innerHTML=[
+    ["Plate",d.plate,true],["Spot",d.spot,true],["Type",d.type],["Gate",d.gate],
+    ["Time in",fmt(d.entryTime)],["Rate",PARKING.types[d.type].rate?PARKING.types[d.type].rate+" RWF/min":"Free"],
+    ["Driver",d.driver],["Phone",d.phone]
+  ].map(([l,v,m])=>`<div class="t-row"><div class="t-label">${l}</div><div class="t-val" style="font-family:${m?"var(--mono)":"var(--font)"}">${v}</div></div>`).join("");
+}
+
+window.clearEntry = ()=>{
+  ["entry-plate","entry-driver","entry-phone"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("ticket-card").style.display="none";
+};
+
+// ── EXIT ───────────────────────────────────────────────
+window.lookupExit = function(){
+  const plate=document.getElementById("exit-plate").value.trim().toUpperCase();
+  document.getElementById("exit-card").style.display="none";
+  document.getElementById("receipt-card").style.display="none";
+  if(!plate){toast("Enter a plate number","wrn");return;}
+  const v=S.parked[plate];
+  if(!v){toast("Plate "+plate+" not found in lot","err");return;}
+  const ms=Date.now()-v.entryTime, f=fee(v.type,ms);
+  S.pendingExit={plate,v,ms,f};
+  document.getElementById("exit-fee-val").textContent=f.toLocaleString()+" RWF";
+  document.getElementById("exit-summary-body").innerHTML=[
+    ["Plate",plate,true],["Spot",v.spot||"–",true],["Type",v.type],["Entry gate",v.gate],
+    ["Time in",fmt(v.entryTime)],["Duration",dur(ms)]
+  ].map(([l,v2,m])=>`<div class="t-row"><div class="t-label">${l}</div><div class="t-val" style="font-family:${m?"var(--mono)":"var(--font)"}">${v2}</div></div>`).join("");
+  document.getElementById("exit-card").style.display="block";
+};
+
+window.confirmExit = async function(){
+  if(!S.pendingExit)return;
+  const {plate,v,ms,f}=S.pendingExit;
+  const exitGate=document.getElementById("exit-gate").value;
+  await deleteDoc(doc(db,"parked",plate));
+  const rec={time:ts(),plate,type:v.type,gate:exitGate,duration:dur(ms),fee:f,ts:serverTimestamp()};
+  await setDoc(doc(db,"exitLog",plate+"_"+Date.now()),rec);
+  S.exitGC[exitGate]=(S.exitGC[exitGate]||0)+1;
+  S.revHistory.push({t:ts(),v:S.revenue+f});
+  if(S.revHistory.length>30)S.revHistory.shift();
+  updateRevChart();
+  S.lastReceipt={plate,type:v.type,entryGate:v.gate,exitGate,duration:dur(ms),fee:f,time:ts(),driver:v.driver||"–"};
+  showReceipt(S.lastReceipt);
+  addActivity('<path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>',plate+" exited",v.type+" · "+exitGate+" · "+f+" RWF","#2ecc71");
+  toast(plate+" exited · "+f+" RWF collected");
+  document.getElementById("exit-card").style.display="none";
+  document.getElementById("exit-plate").value="";
+  S.pendingExit=null;
+};
+
+function showReceipt(d){
+  document.getElementById("receipt-card").style.display="block";
+  document.getElementById("receipt-body").innerHTML=[
+    ["Plate",d.plate,true],["Driver",d.driver],["Exit gate",d.exitGate],["Duration",d.duration],
+    ["Fee collected",d.fee.toLocaleString()+" RWF",true],["Time",d.time]
+  ].map(([l,v,m])=>`<div class="t-row"><div class="t-label">${l}</div><div class="t-val" style="font-family:${m?"var(--mono)":"var(--font)"}">${v}</div></div>`).join("");
+}
+
+window.cancelExit=()=>{ S.pendingExit=null; document.getElementById("exit-card").style.display="none"; };
+
+// ── PDF TICKET ─────────────────────────────────────────
+window.downloadTicket = function(type2){
+  const {jsPDF}=window.jspdf;
+  const doc2=new jsPDF({unit:"mm",format:[80,120]});
+  const isEntry=(type2==="entry");
+  const d=isEntry?S.lastTicket:S.lastReceipt;
+  if(!d){toast("No ticket data available","wrn");return;}
+  doc2.setFillColor(11,14,20); doc2.rect(0,0,80,120,"F");
+  doc2.setFontSize(14); doc2.setTextColor(0,201,167);
+  doc2.setFont("helvetica","bold");
+  doc2.text("PARKOS",40,12,{align:"center"});
+  doc2.setFontSize(8); doc2.setTextColor(122,128,153);
+  doc2.text("LOT MANAGEMENT SYSTEM",40,18,{align:"center"});
+  doc2.setDrawColor(30,37,53); doc2.line(4,22,76,22);
+  doc2.setFontSize(10); doc2.setTextColor(isEntry?[0,201,167]:[46,204,113]);
+  doc2.text(isEntry?"ENTRY TICKET":"EXIT RECEIPT",40,30,{align:"center"});
+  const rows=isEntry?[
+    ["Plate",d.plate],["Spot",d.spot],["Type",d.type],["Gate",d.gate],
+    ["Time In",fmt(d.entryTime)],["Rate",PARKING.types[d.type]?.rate?PARKING.types[d.type].rate+" RWF/min":"Free"],
+    ["Driver",d.driver||"–"],["Phone",d.phone||"–"]
+  ]:[
+    ["Plate",d.plate],["Driver",d.driver||"–"],["Exit gate",d.exitGate],
+    ["Duration",d.duration],["Fee",d.fee?.toLocaleString()+" RWF"],["Time",d.time]
+  ];
+  let y=40;
+  rows.forEach(([l,v])=>{
+    doc2.setFontSize(8); doc2.setTextColor(122,128,153); doc2.text(l.toUpperCase(),8,y);
+    doc2.setFontSize(9); doc2.setTextColor(232,234,240); doc2.text(String(v||"–"),8,y+5);
+    doc2.setDrawColor(30,37,53); doc2.line(8,y+9,72,y+9);
+    y+=14;
+  });
+  doc2.setFontSize(7); doc2.setTextColor(122,128,153);
+  doc2.text("Thank you for using ParkOS",40,y+6,{align:"center"});
+  doc2.text(new Date().toLocaleString(),40,y+11,{align:"center"});
+  doc2.save("parkos_"+(isEntry?"ticket":"receipt")+"_"+(d.plate||"doc")+".pdf");
+  toast("PDF downloaded");
+};
+
+window.printTicket = function(type2){
+  const {jsPDF}=window.jspdf;
+  const d=type2==="entry"?S.lastTicket:S.lastReceipt;
+  if(!d){toast("No ticket data","wrn");return;}
+  const isEntry=(type2==="entry");
+  const rows=isEntry?[["Plate",d.plate],["Spot",d.spot],["Type",d.type],["Gate",d.gate],["Time in",fmt(d.entryTime)],["Rate",PARKING.types[d.type]?.rate?PARKING.types[d.type].rate+" RWF/min":"Free"],["Driver",d.driver||"–"],["Phone",d.phone||"–"]]:
+    [["Plate",d.plate],["Driver",d.driver||"–"],["Exit gate",d.exitGate],["Duration",d.duration],["Fee",d.fee?.toLocaleString()+" RWF"],["Time",d.time]];
+  const html=`<html><head><style>body{font-family:monospace;margin:20px;max-width:300px}h2{text-align:center;margin-bottom:4px}p{text-align:center;color:#666;font-size:12px;margin-bottom:16px}table{width:100%;border-collapse:collapse}td{padding:6px 4px;border-bottom:1px solid #eee;font-size:13px}td:first-child{color:#888;text-transform:uppercase;font-size:11px;width:40%}footer{text-align:center;margin-top:16px;font-size:11px;color:#999}</style></head><body>
+    <h2>ParkOS</h2><p>${isEntry?"Entry Ticket":"Exit Receipt"}</p>
+    <table>${rows.map(([l,v])=>`<tr><td>${l}</td><td><b>${v||"–"}</b></td></tr>`).join("")}</table>
+    <footer>Thank you · ${new Date().toLocaleString()}</footer></body></html>`;
+  const fr=document.getElementById("print-frame");
+  fr.contentDocument.open(); fr.contentDocument.write(html); fr.contentDocument.close();
+  fr.contentWindow.print();
+};
+
+window.exportLogsPDF = function(){
+  const {jsPDF}=window.jspdf;
+  const doc2=new jsPDF();
+  doc2.setFontSize(16); doc2.setTextColor(0,201,167);
+  doc2.text("ParkOS — Operations Report",14,18);
+  doc2.setFontSize(10); doc2.setTextColor(100);
+  doc2.text("Generated: "+new Date().toLocaleString(),14,26);
+  doc2.line(14,30,196,30);
+  doc2.setFontSize(12); doc2.setTextColor(50);
+  doc2.text("Summary",14,40);
+  doc2.setFontSize(10);
+  doc2.text("Total parked now: "+totOcc(),14,50);
+  doc2.text("Revenue today: "+S.revenue.toLocaleString()+" RWF",14,57);
+  doc2.text("Total entries: "+S.entryLog.length,14,64);
+  doc2.text("Total exits: "+S.exitLog.length,14,71);
+  doc2.text("Turned away: "+S.deniedLog.length,14,78);
+  doc2.setFontSize(12); doc2.text("Recent exits",14,92);
+  let y=100;
+  S.exitLog.slice(0,15).forEach(r=>{
+    doc2.setFontSize(9); doc2.text(`${r.plate||"–"} | ${r.type||"–"} | ${r.gate||"–"} | ${r.duration||"–"} | ${(r.fee||0).toLocaleString()} RWF | ${r.time||"–"}`,14,y);
+    y+=7; if(y>270){doc2.addPage();y=20;}
+  });
+  doc2.save("parkos_report_"+new Date().toISOString().slice(0,10)+".pdf");
+  toast("Report PDF downloaded");
+};
+
+// ── LOGS ───────────────────────────────────────────────
+function renderLogs(){
+  const et=document.getElementById("log-entry-tbody"),xt=document.getElementById("log-exit-tbody"),dt=document.getElementById("log-denied-tbody");
+  if(!et)return;
+  et.innerHTML=S.entryLog.map(r=>`<tr>
+    <td style="font-family:var(--mono)">${r.time}</td><td style="font-family:var(--mono);font-weight:500">${r.plate}</td>
+    <td><span class="pill ${(r.type||"").toLowerCase()}">${r.type}</span></td>
+    <td>${r.gate}</td><td style="font-family:var(--mono)">${r.spot||"–"}</td>
+    <td>${r.driver||"–"}</td>
+    <td><button class="btn pdf-btn" style="padding:2px 7px;font-size:10px" onclick="reissueTicket('${r.plate}')">PDF</button></td>
+  </tr>`).join("")||noData(7);
+  xt.innerHTML=S.exitLog.map(r=>`<tr>
+    <td style="font-family:var(--mono)">${r.time}</td><td style="font-family:var(--mono);font-weight:500">${r.plate}</td>
+    <td><span class="pill ${(r.type||"").toLowerCase()}">${r.type}</span></td>
+    <td>${r.gate}</td><td>${r.duration}</td>
+    <td style="font-family:var(--mono);color:var(--accent)">${(r.fee||0).toLocaleString()} RWF</td>
+    <td><button class="btn pdf-btn" style="padding:2px 7px;font-size:10px" onclick="reissueReceipt('${r.plate}','${r.time}')">PDF</button></td>
+  </tr>`).join("")||noData(7);
+  dt.innerHTML=S.deniedLog.map(r=>`<tr>
+    <td style="font-family:var(--mono)">${r.time}</td>
+    <td><span class="pill ${(r.type||"").toLowerCase()}">${r.type}</span></td>
+    <td>${r.gate}</td><td style="color:var(--danger)">${r.reason}</td>
+  </tr>`).join("")||noData(4);
+}
+const noData = n=>`<tr><td colspan="${n}" style="text-align:center;color:var(--muted);padding:20px">No records yet</td></tr>`;
+
+window.reissueReceipt=(plate,time)=>{
+  const rec=S.exitLog.find(r=>r.plate===plate&&r.time===time);
+  if(!rec)return;
+  S.lastReceipt={plate,type:rec.type,exitGate:rec.gate,duration:rec.duration,fee:rec.fee,time:rec.time,driver:"–"};
+  downloadTicket("exit");
+};
+
+window.showLogTab=tab=>{
+  ["entry","exit","denied"].forEach(t=>{
+    document.getElementById("log-"+t+"-pane").style.display=t===tab?"block":"none";
+    const b=document.getElementById("lt-"+t);
+    b.style.borderColor=t===tab?"var(--accent)":""; b.style.color=t===tab?"var(--accent)":"";
+  });
+};
+
+// ── NAVIGATION ─────────────────────────────────────────
+window.nav = (id,el)=>{
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.getElementById("page-"+id).classList.add("active");
+  document.querySelectorAll(".nav-item").forEach(n=>n.classList.remove("active"));
+  if(el)el.classList.add("active"); else document.querySelector(`[onclick="nav('${id}',this)"]`)?.classList.add("active");
+  const m=pageMeta[id]||{};
+  document.getElementById("top-title").textContent=m.t||id;
+  document.getElementById("top-sub").textContent=m.s||"";
+  if(id==="vehicles")renderVehicles();
+  if(id==="logs")renderLogs();
+  if(id==="gates")renderGates();
+  if(id==="entry")refreshSpaceInfo();
+};
+
+window.closeModal=()=>document.getElementById("modal-overlay").classList.remove("open");
+
+// ── CLOCK ──────────────────────────────────────────────
+setInterval(()=>document.getElementById("clock").textContent=new Date().toLocaleTimeString(),1000);
+document.getElementById("clock").textContent=new Date().toLocaleTimeString();
+setInterval(()=>{ if(document.getElementById("page-vehicles").classList.contains("active"))renderVehicles(); },20000);
+window.showLogTab("entry");
+</script>
+</body>
+</html>
